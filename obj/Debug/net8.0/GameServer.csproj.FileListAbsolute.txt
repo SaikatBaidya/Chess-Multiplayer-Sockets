@@ -12,3 +12,4 @@ C:\Users\saika\OneDrive\Desktop\711-A2\GameServer\obj\Debug\net8.0\refint\GameSe
 C:\Users\saika\OneDrive\Desktop\711-A2\GameServer\obj\Debug\net8.0\GameServer.pdb
 C:\Users\saika\OneDrive\Desktop\711-A2\GameServer\obj\Debug\net8.0\GameServer.genruntimeconfig.cache
 C:\Users\saika\OneDrive\Desktop\711-A2\GameServer\obj\Debug\net8.0\ref\GameServer.dll
+C:\Users\saika\OneDrive\Desktop\711-A2\GameServer\obj\Debug\net8.0\GameServer.sourcelink.json

@@ -32,21 +32,27 @@ namespace SocketTest
                     byte[] bytes = new byte[1024];
                     string data = string.Empty;
 
-                    int bytesRec = 0;
+                    // Keep the connection open for multiple requests
                     while (true)
                     {
-                        bytesRec = handler.Receive(bytes);
+                        int bytesRec = handler.Receive(bytes);
+                        if (bytesRec == 0)
+                        {
+                            // Client disconnected
+                            Console.WriteLine($"Client {remoteEndPoint} disconnected.");
+                            break;
+                        }
                         data += Encoding.ASCII.GetString(bytes, 0, bytesRec);
                         if (data.IndexOf('\n') > -1)
                         {
-                            break;
+                            Console.WriteLine($"Received text from {remoteEndPoint}: {data}");
+
+                            byte[] msg = Encoding.ASCII.GetBytes($"[{data}]");
+                            handler.Send(msg);
+
+                            data = string.Empty; // Reset for next message
                         }
                     }
-
-                    Console.WriteLine($"Received text from {remoteEndPoint}: {data}");
-
-                    byte[] msg = Encoding.ASCII.GetBytes($"[{data}]");
-                    handler.Send(msg);
 
                     handler.Shutdown(SocketShutdown.Both);
                     handler.Close();
