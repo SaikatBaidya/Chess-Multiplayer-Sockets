@@ -2,6 +2,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading; 
 
 namespace SocketTest
 {
@@ -26,36 +27,12 @@ namespace SocketTest
                 while (true)
                 {
                     Console.WriteLine($"Waiting for a connection at {localEndPoint.Port}...");
-
                     Socket handler = listener.Accept();
                     var remoteEndPoint = (IPEndPoint)handler.RemoteEndPoint!;
-                    byte[] bytes = new byte[1024];
-                    string data = string.Empty;
+                    Console.WriteLine($"Accepted connection from {remoteEndPoint}");
 
-                    // Keep the connection open for multiple requests
-                    while (true)
-                    {
-                        int bytesRec = handler.Receive(bytes);
-                        if (bytesRec == 0)
-                        {
-                            // Client disconnected
-                            Console.WriteLine($"Client {remoteEndPoint} disconnected.");
-                            break;
-                        }
-                        data += Encoding.ASCII.GetString(bytes, 0, bytesRec);
-                        if (data.IndexOf('\n') > -1)
-                        {
-                            Console.WriteLine($"Received text from {remoteEndPoint}: {data}");
-
-                            byte[] msg = Encoding.ASCII.GetBytes($"[{data}]");
-                            handler.Send(msg);
-
-                            data = string.Empty; // Reset for next message
-                        }
-                    }
-
-                    handler.Shutdown(SocketShutdown.Both);
-                    handler.Close();
+                    Thread clientThread = new Thread(() => HandleClient(handler, remoteEndPoint));
+                    clientThread.Start();
                 }
             }
             catch (Exception e)
@@ -65,6 +42,81 @@ namespace SocketTest
 
             Console.WriteLine("\nPress ENTER to continue...");
             Console.ReadLine();
+        }
+
+        private void HandleClient(Socket handler, IPEndPoint remoteEndPoint)
+        {
+            try
+            {
+                byte[] buffer = new byte[4096];
+                StringBuilder requestBuilder = new StringBuilder();
+
+                while (true)
+                {
+                    int bytesRec = handler.Receive(buffer);
+                    if (bytesRec == 0)
+                    {
+                        Console.WriteLine($"Client {remoteEndPoint} disconnected.");
+                        break;
+                    }
+
+                    requestBuilder.Append(Encoding.ASCII.GetString(buffer, 0, bytesRec));
+
+                    // Check for end of HTTP headers
+                    if (requestBuilder.ToString().Contains("\r\n\r\n"))
+                    {
+                        string request = requestBuilder.ToString();
+                        Console.WriteLine($"Received HTTP request from {remoteEndPoint}:\n{request}");
+
+                        // Parse the request line
+                        string[] lines = request.Split("\r\n");
+                        string[] requestLine = lines[0].Split(' ');
+
+                        if (requestLine.Length >= 2 && requestLine[0] == "GET" && requestLine[1] == "/register")
+                        {
+                            // Generate a random username (for demo, use a GUID substring)
+                            string username = Guid.NewGuid().ToString().Substring(0, 8);
+
+                            string responseBody = $"{{\"username\":\"{username}\"}}";
+                            string response =
+                                "HTTP/1.1 200 OK\r\n" +
+                                "Content-Type: application/json\r\n" +
+                                $"Content-Length: {Encoding.UTF8.GetByteCount(responseBody)}\r\n" +
+                                "Connection: keep-alive\r\n" +
+                                "\r\n" +
+                                responseBody;
+
+                            handler.Send(Encoding.UTF8.GetBytes(response));
+                        }
+                        else
+                        {
+                            // 404 Not Found for other endpoints
+                            string responseBody = "Not Found";
+                            string response =
+                                "HTTP/1.1 404 Not Found\r\n" +
+                                "Content-Type: text/plain\r\n" +
+                                $"Content-Length: {Encoding.UTF8.GetByteCount(responseBody)}\r\n" +
+                                "Connection: close\r\n" +
+                                "\r\n" +
+                                responseBody;
+
+                            handler.Send(Encoding.UTF8.GetBytes(response));
+                            break; // Close connection for unknown endpoints
+                        }
+
+                        requestBuilder.Clear(); // Ready for next request
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Error with client {remoteEndPoint}: {e}");
+            }
+            finally
+            {
+                handler.Shutdown(SocketShutdown.Both);
+                handler.Close();
+            }
         }
 
         public static int Main(string[] args)
