@@ -3,11 +3,26 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading; 
+using System.Collections.Generic;
 
 namespace SocketTest
 {
     public class SynchronousSocketListener
     {
+        private static object _lock = new object();
+        private static List<GameRecord> waitingGames = new List<GameRecord>();
+        private static List<GameRecord> activeGames = new List<GameRecord>();
+
+        private class GameRecord
+        {
+            public string GameId { get; set; }
+            public string State { get; set; } // "wait" or "progress"
+            public string Player1 { get; set; }
+            public string Player2 { get; set; }
+            public string LastMove1 { get; set; }
+            public string LastMove2 { get; set; }
+        }
+
         public void StartListening()
         {
             const int BACKLOG = 10;
@@ -72,39 +87,117 @@ namespace SocketTest
                         string[] lines = request.Split("\r\n");
                         string[] requestLine = lines[0].Split(' ');
 
-                        if (requestLine.Length >= 2 && requestLine[0] == "GET" && requestLine[1] == "/register")
+                        if (requestLine.Length >= 2 && requestLine[0] == "GET")
                         {
-                            // Generate a random username (for demo, use a GUID substring)
-                            string username = Guid.NewGuid().ToString().Substring(0, 8);
+                            if (requestLine[1].StartsWith("/register"))
+                            {
+                                // Generate a random username (for demo, use a GUID substring)
+                                string username = Guid.NewGuid().ToString().Substring(0, 8);
 
-                            string responseBody = $"{{\"username\":\"{username}\"}}";
-                            string response =
-                                "HTTP/1.1 200 OK\r\n" +
-                                "Content-Type: application/json\r\n" +
-                                $"Content-Length: {Encoding.UTF8.GetByteCount(responseBody)}\r\n" +
-                                "Connection: keep-alive\r\n" +
-                                "\r\n" +
-                                responseBody;
+                                string responseBody = $"{{\"username\":\"{username}\"}}";
+                                string response =
+                                    "HTTP/1.1 200 OK\r\n" +
+                                    "Content-Type: application/json\r\n" +
+                                    $"Content-Length: {Encoding.UTF8.GetByteCount(responseBody)}\r\n" +
+                                    "Connection: keep-alive\r\n" +
+                                    "\r\n" +
+                                    responseBody;
 
-                            handler.Send(Encoding.UTF8.GetBytes(response));
+                                handler.Send(Encoding.UTF8.GetBytes(response));
+                            }
+                            else if (requestLine[1].StartsWith("/pairme"))
+                            {
+                                // Manual query string parsing for player parameter
+                                string player = null;
+                                string url = requestLine[1];
+                                int qIndex = url.IndexOf('?');
+                                if (qIndex != -1 && url.Length > qIndex + 1)
+                                {
+                                    string query = url.Substring(qIndex + 1);
+                                    var pairs = query.Split('&');
+                                    foreach (var pair in pairs)
+                                    {
+                                        var kv = pair.Split('=');
+                                        if (kv.Length == 2 && kv[0] == "player")
+                                        {
+                                            player = Uri.UnescapeDataString(kv[1]);
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                if (string.IsNullOrEmpty(player))
+                                {
+                                    string responseBody = "Missing player parameter";
+                                    string response =
+                                        "HTTP/1.1 400 Bad Request\r\n" +
+                                        "Content-Type: text/plain\r\n" +
+                                        $"Content-Length: {Encoding.UTF8.GetByteCount(responseBody)}\r\n" +
+                                        "Connection: keep-alive\r\n" +
+                                        "\r\n" +
+                                        responseBody;
+                                    handler.Send(Encoding.UTF8.GetBytes(response));
+                                }
+                                else
+                                {
+                                    GameRecord gameRecord = null;
+                                    lock (_lock)
+                                    {
+                                        // Try to find a waiting game
+                                        if (waitingGames.Count > 0)
+                                        {
+                                            gameRecord = waitingGames[0];
+                                            waitingGames.RemoveAt(0);
+                                            gameRecord.Player2 = player;
+                                            gameRecord.State = "progress";
+                                            activeGames.Add(gameRecord);
+                                        }
+                                        else
+                                        {
+                                            // Create a new waiting game
+                                            gameRecord = new GameRecord
+                                            {
+                                                GameId = Guid.NewGuid().ToString(),
+                                                State = "wait",
+                                                Player1 = player,
+                                                Player2 = null,
+                                                LastMove1 = null,
+                                                LastMove2 = null
+                                            };
+                                            waitingGames.Add(gameRecord);
+                                        }
+                                    }
+
+                                    // Build response JSON
+                                    string responseBody = $"{{\"gameId\":\"{gameRecord.GameId}\",\"state\":\"{gameRecord.State}\",\"player1\":\"{gameRecord.Player1}\",\"player2\":\"{gameRecord.Player2}\",\"lastMove1\":{(gameRecord.LastMove1 == null ? "null" : $"\"{gameRecord.LastMove1}\"")},\"lastMove2\":{(gameRecord.LastMove2 == null ? "null" : $"\"{gameRecord.LastMove2}\"")}}}";
+                                    string response =
+                                        "HTTP/1.1 200 OK\r\n" +
+                                        "Content-Type: application/json\r\n" +
+                                        $"Content-Length: {Encoding.UTF8.GetByteCount(responseBody)}\r\n" +
+                                        "Connection: keep-alive\r\n" +
+                                        "\r\n" +
+                                        responseBody;
+                                    handler.Send(Encoding.UTF8.GetBytes(response));
+                                }
+                            }
+                            else
+                            {
+                                // 404 Not Found for other endpoints
+                                string responseBody = "Not Found";
+                                string response =
+                                    "HTTP/1.1 404 Not Found\r\n" +
+                                    "Content-Type: text/plain\r\n" +
+                                    $"Content-Length: {Encoding.UTF8.GetByteCount(responseBody)}\r\n" +
+                                    "Connection: close\r\n" +
+                                    "\r\n" +
+                                    responseBody;
+
+                                handler.Send(Encoding.UTF8.GetBytes(response));
+                                break; // Close connection for unknown endpoints
+                            }
+
+                            requestBuilder.Clear(); // Ready for next request
                         }
-                        else
-                        {
-                            // 404 Not Found for other endpoints
-                            string responseBody = "Not Found";
-                            string response =
-                                "HTTP/1.1 404 Not Found\r\n" +
-                                "Content-Type: text/plain\r\n" +
-                                $"Content-Length: {Encoding.UTF8.GetByteCount(responseBody)}\r\n" +
-                                "Connection: close\r\n" +
-                                "\r\n" +
-                                responseBody;
-
-                            handler.Send(Encoding.UTF8.GetBytes(response));
-                            break; // Close connection for unknown endpoints
-                        }
-
-                        requestBuilder.Clear(); // Ready for next request
                     }
                 }
             }
