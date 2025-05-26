@@ -81,7 +81,7 @@ namespace SocketTest
                     if (requestBuilder.ToString().Contains("\r\n\r\n"))
                     {
                         string request = requestBuilder.ToString();
-                        Console.WriteLine($"Received HTTP request from {remoteEndPoint}:\n{request}");
+                        Console.WriteLine($"Received HTTP request from {remoteEndPoint} on thread {Thread.CurrentThread.ManagedThreadId}:\n{request}");
 
                         // Parse the request line
                         string[] lines = request.Split("\r\n");
