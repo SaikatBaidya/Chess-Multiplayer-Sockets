@@ -268,6 +268,134 @@ namespace SocketTest
                                     }
                                 }
                             }
+                            else if (requestLine[1].StartsWith("/theirmove"))
+                            {
+                                // Manual query string parsing for player and id
+                                string player = null, gameId = null;
+                                string url = requestLine[1];
+                                int qIndex = url.IndexOf('?');
+                                if (qIndex != -1 && url.Length > qIndex + 1)
+                                {
+                                    string query = url.Substring(qIndex + 1);
+                                    var pairs = query.Split('&');
+                                    foreach (var pair in pairs)
+                                    {
+                                        var kv = pair.Split('=');
+                                        if (kv.Length == 2)
+                                        {
+                                            if (kv[0] == "player") player = Uri.UnescapeDataString(kv[1]);
+                                            else if (kv[0] == "id") gameId = Uri.UnescapeDataString(kv[1]);
+                                        }
+                                    }
+                                }
+
+                                if (string.IsNullOrEmpty(player) || string.IsNullOrEmpty(gameId))
+                                {
+                                    string responseBody = "Missing parameter";
+                                    string response =
+                                        "HTTP/1.1 400 Bad Request\r\n" +
+                                        "Content-Type: text/plain\r\n" +
+                                        "Access-Control-Allow-Origin: *\r\n" +
+                                        $"Content-Length: {Encoding.UTF8.GetByteCount(responseBody)}\r\n" +
+                                        "Connection: keep-alive\r\n" +
+                                        "\r\n" +
+                                        responseBody;
+                                    handler.Send(Encoding.UTF8.GetBytes(response));
+                                }
+                                else
+                                {
+                                    string move = null;
+                                    bool found = false;
+                                    lock (_lock)
+                                    {
+                                        foreach (var game in activeGames)
+                                        {
+                                            if (game.GameId == gameId)
+                                            {
+                                                if (game.Player1 == player)
+                                                    move = game.LastMove2;
+                                                else if (game.Player2 == player)
+                                                    move = game.LastMove1;
+                                                else
+                                                    break; // player not in this game
+
+                                                found = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+
+                                    if (found)
+                                    {
+                                        string responseBody = $"{{\"move\":{(move == null ? "null" : $"\"{move}\"")}}}";
+                                        string response =
+                                            "HTTP/1.1 200 OK\r\n" +
+                                            "Content-Type: application/json\r\n" +
+                                            "Access-Control-Allow-Origin: *\r\n" +
+                                            $"Content-Length: {Encoding.UTF8.GetByteCount(responseBody)}\r\n" +
+                                            "Connection: keep-alive\r\n" +
+                                            "\r\n" +
+                                            responseBody;
+                                        handler.Send(Encoding.UTF8.GetBytes(response));
+                                    }
+                                    else
+                                    {
+                                        string responseBody = "Game or player not found";
+                                        string response =
+                                            "HTTP/1.1 404 Not Found\r\n" +
+                                            "Content-Type: text/plain\r\n" +
+                                            "Access-Control-Allow-Origin: *\r\n" +
+                                            $"Content-Length: {Encoding.UTF8.GetByteCount(responseBody)}\r\n" +
+                                            "Connection: keep-alive\r\n" +
+                                            "\r\n" +
+                                            responseBody;
+                                        handler.Send(Encoding.UTF8.GetBytes(response));
+                                    }
+                                }
+                            }
+                            else if (requestLine[1].StartsWith("/quit"))
+                            {
+                                // Manual query string parsing for player and id
+                                string player = null, gameId = null;
+                                string url = requestLine[1];
+                                int qIndex = url.IndexOf('?');
+                                if (qIndex != -1 && url.Length > qIndex + 1)
+                                {
+                                    string query = url.Substring(qIndex + 1);
+                                    var pairs = query.Split('&');
+                                    foreach (var pair in pairs)
+                                    {
+                                        var kv = pair.Split('=');
+                                        if (kv.Length == 2)
+                                        {
+                                            if (kv[0] == "player") player = Uri.UnescapeDataString(kv[1]);
+                                            else if (kv[0] == "id") gameId = Uri.UnescapeDataString(kv[1]);
+                                        }
+                                    }
+                                }
+
+                                bool removed = false;
+                                lock (_lock)
+                                {
+                                    // Remove from waitingGames
+                                    waitingGames.RemoveAll(g => g.GameId == gameId && (g.Player1 == player || g.Player2 == player));
+                                    // Remove from activeGames
+                                    int before = activeGames.Count;
+                                    activeGames.RemoveAll(g => g.GameId == gameId && (g.Player1 == player || g.Player2 == player));
+                                    removed = (activeGames.Count < before);
+                                }
+
+                                string responseBody = removed ? "{\"status\":\"quit\"}" : "{\"status\":\"notfound\"}";
+                                string response =
+                                    "HTTP/1.1 200 OK\r\n" +
+                                    "Content-Type: application/json\r\n" +
+                                    "Access-Control-Allow-Origin: *\r\n" +
+                                    $"Content-Length: {Encoding.UTF8.GetByteCount(responseBody)}\r\n" +
+                                    "Connection: keep-alive\r\n" +
+                                    "\r\n" +
+                                    responseBody;
+                                handler.Send(Encoding.UTF8.GetBytes(response));
+                            }
                             else
                             {
                                 // 404 Not Found for other endpoints
