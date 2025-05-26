@@ -116,6 +116,12 @@
          const newPiece = createPiece(pieceChar);
          target.innerHTML = "";
          target.appendChild(newPiece);
+
+         // --- Send move to server ---
+         if (username && gameId && source !== "bin") {
+            const move = source + target.dataset.position; 
+            sendMove(move);
+         }
       }
 
       function handleBinDrop(e) {
@@ -183,21 +189,37 @@
       buildBoard();
    </script>
    <script>
-let username = "";
-let gameId = "";
+      let username = "";
+      let gameId = "";
 
-async function pairMe() {
-    username = document.getElementById("playerName").value.trim();
-    if (!username) {
-        alert("Please enter your name.");
-        return;
-    }
-    const resp = await fetch(`http://localhost:11000/pairme?player=${encodeURIComponent(username)}`);
-    const data = await resp.json();
-    gameId = data.gameId;
-    document.getElementById("pairStatus").innerText =
-        `Paired! Game ID: ${gameId}, State: ${data.state}, Player1: ${data.player1}, Player2: ${data.player2}`;
-}
-</script>
+      async function pairMe() {
+         username = document.getElementById("playerName").value.trim();
+         if (!username) {
+            alert("Please enter your name.");
+            return;
+         }
+         const resp = await fetch(`http://localhost:11000/pairme?player=${encodeURIComponent(username)}`);
+         const data = await resp.json();
+         gameId = data.gameId;
+         document.getElementById("pairStatus").innerText =
+            `Paired! Game ID: ${gameId}, State: ${data.state}, Player1: ${data.player1}, Player2: ${data.player2}`;
+      }
+
+      async function sendMove(move) {
+         try {
+            const resp = await fetch(
+               `http://localhost:11000/mymove?player=${encodeURIComponent(username)}&id=${encodeURIComponent(gameId)}&move=${encodeURIComponent(move)}`
+            );
+            const data = await resp.json();
+            if (data.status === "ok") {
+               console.log("Move sent:", move);
+            } else {
+               alert("Error sending move: " + JSON.stringify(data));
+            }
+         } catch (err) {
+            alert("Failed to send move: " + err);
+         }
+      }
+      </script>
 </body>
 </html>
