@@ -180,6 +180,88 @@ namespace SocketTest
                                     handler.Send(Encoding.UTF8.GetBytes(response));
                                 }
                             }
+                            else if (requestLine[1].StartsWith("/mymove"))
+                            {
+                                // Manual query string parsing for player, id, and move
+                                string player = null, gameId = null, move = null;
+                                string url = requestLine[1];
+                                int qIndex = url.IndexOf('?');
+                                if (qIndex != -1 && url.Length > qIndex + 1)
+                                {
+                                    string query = url.Substring(qIndex + 1);
+                                    var pairs = query.Split('&');
+                                    foreach (var pair in pairs)
+                                    {
+                                        var kv = pair.Split('=');
+                                        if (kv.Length == 2)
+                                        {
+                                            if (kv[0] == "player") player = Uri.UnescapeDataString(kv[1]);
+                                            else if (kv[0] == "id") gameId = Uri.UnescapeDataString(kv[1]);
+                                            else if (kv[0] == "move") move = Uri.UnescapeDataString(kv[1]);
+                                        }
+                                    }
+                                }
+
+                                if (string.IsNullOrEmpty(player) || string.IsNullOrEmpty(gameId) || string.IsNullOrEmpty(move))
+                                {
+                                    string responseBody = "Missing parameter";
+                                    string response =
+                                        "HTTP/1.1 400 Bad Request\r\n" +
+                                        "Content-Type: text/plain\r\n" +
+                                        $"Content-Length: {Encoding.UTF8.GetByteCount(responseBody)}\r\n" +
+                                        "Connection: keep-alive\r\n" +
+                                        "\r\n" +
+                                        responseBody;
+                                    handler.Send(Encoding.UTF8.GetBytes(response));
+                                }
+                                else
+                                {
+                                    bool found = false;
+                                    lock (_lock)
+                                    {
+                                        foreach (var game in activeGames)
+                                        {
+                                            if (game.GameId == gameId)
+                                            {
+                                                if (game.Player1 == player)
+                                                    game.LastMove1 = move;
+                                                else if (game.Player2 == player)
+                                                    game.LastMove2 = move;
+                                                else
+                                                    break; // player not in this game
+
+                                                found = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+
+                                    if (found)
+                                    {
+                                        string responseBody = "{\"status\":\"ok\"}";
+                                        string response =
+                                            "HTTP/1.1 200 OK\r\n" +
+                                            "Content-Type: application/json\r\n" +
+                                            $"Content-Length: {Encoding.UTF8.GetByteCount(responseBody)}\r\n" +
+                                            "Connection: keep-alive\r\n" +
+                                            "\r\n" +
+                                            responseBody;
+                                        handler.Send(Encoding.UTF8.GetBytes(response));
+                                    }
+                                    else
+                                    {
+                                        string responseBody = "Game or player not found";
+                                        string response =
+                                            "HTTP/1.1 404 Not Found\r\n" +
+                                            "Content-Type: text/plain\r\n" +
+                                            $"Content-Length: {Encoding.UTF8.GetByteCount(responseBody)}\r\n" +
+                                            "Connection: keep-alive\r\n" +
+                                            "\r\n" +
+                                            responseBody;
+                                        handler.Send(Encoding.UTF8.GetBytes(response));
+                                    }
+                                }
+                            }
                             else
                             {
                                 // 404 Not Found for other endpoints
