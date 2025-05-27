@@ -16,7 +16,7 @@ namespace SocketTest
         private class GameRecord
         {
             public string GameId { get; set; }
-            public string State { get; set; } // "wait" or "progress"
+            public string State { get; set; }
             public string Player1 { get; set; }
             public string Player2 { get; set; }
             public string LastMove1 { get; set; }
@@ -44,7 +44,7 @@ namespace SocketTest
                     Console.WriteLine($"Waiting for a connection at {localEndPoint.Port}...");
                     Socket handler = listener.Accept();
                     var remoteEndPoint = (IPEndPoint)handler.RemoteEndPoint!;
-                    Console.WriteLine($"Accepted connection from {remoteEndPoint}");
+                    Console.WriteLine($"[Thread {Thread.CurrentThread.ManagedThreadId}] Accepted connection from {remoteEndPoint}");
 
                     Thread clientThread = new Thread(() => HandleClient(handler, remoteEndPoint));
                     clientThread.Start();
@@ -71,7 +71,7 @@ namespace SocketTest
                     int bytesRec = handler.Receive(buffer);
                     if (bytesRec == 0)
                     {
-                        Console.WriteLine($"Client {remoteEndPoint} disconnected.");
+                        Console.WriteLine($"[Thread {Thread.CurrentThread.ManagedThreadId}] Client {remoteEndPoint} disconnected.");
                         break;
                     }
 
@@ -81,7 +81,7 @@ namespace SocketTest
                     if (requestBuilder.ToString().Contains("\r\n\r\n"))
                     {
                         string request = requestBuilder.ToString();
-                        Console.WriteLine($"Received HTTP request from {remoteEndPoint}:\n{request}");
+                        Console.WriteLine($"[Thread {Thread.CurrentThread.ManagedThreadId}] Received HTTP request from {remoteEndPoint}:\n{request}");
 
                         // Parse the request line
                         string[] lines = request.Split("\r\n");
@@ -105,6 +105,7 @@ namespace SocketTest
                                     responseBody;
 
                                 handler.Send(Encoding.UTF8.GetBytes(response));
+                                Console.WriteLine($"Thread {Thread.CurrentThread.ManagedThreadId} sent response to {remoteEndPoint} for {requestLine[1]}");
                             }
                             else if (requestLine[1].StartsWith("/pairme"))
                             {
@@ -139,6 +140,7 @@ namespace SocketTest
                                         "\r\n" +
                                         responseBody;
                                     handler.Send(Encoding.UTF8.GetBytes(response));
+                                    Console.WriteLine($"Thread {Thread.CurrentThread.ManagedThreadId} sent response to {remoteEndPoint} for {requestLine[1]}");
                                 }
                                 else
                                 {
@@ -181,6 +183,7 @@ namespace SocketTest
                                         "\r\n" +
                                         responseBody;
                                     handler.Send(Encoding.UTF8.GetBytes(response));
+                                    Console.WriteLine($"Thread {Thread.CurrentThread.ManagedThreadId} sent response to {remoteEndPoint} for {requestLine[1]}");
                                 }
                             }
                             else if (requestLine[1].StartsWith("/mymove"))
@@ -217,6 +220,7 @@ namespace SocketTest
                                         "\r\n" +
                                         responseBody;
                                     handler.Send(Encoding.UTF8.GetBytes(response));
+                                    Console.WriteLine($"Thread {Thread.CurrentThread.ManagedThreadId} sent response to {remoteEndPoint} for {requestLine[1]}");
                                 }
                                 else
                                 {
@@ -252,6 +256,7 @@ namespace SocketTest
                                             "\r\n" +
                                             responseBody;
                                         handler.Send(Encoding.UTF8.GetBytes(response));
+                                        Console.WriteLine($"Thread {Thread.CurrentThread.ManagedThreadId} sent response to {remoteEndPoint} for {requestLine[1]}");
                                     }
                                     else
                                     {
@@ -265,6 +270,7 @@ namespace SocketTest
                                             "\r\n" +
                                             responseBody;
                                         handler.Send(Encoding.UTF8.GetBytes(response));
+                                        Console.WriteLine($"Thread {Thread.CurrentThread.ManagedThreadId} sent response to {remoteEndPoint} for {requestLine[1]}");
                                     }
                                 }
                             }
@@ -301,6 +307,7 @@ namespace SocketTest
                                         "\r\n" +
                                         responseBody;
                                     handler.Send(Encoding.UTF8.GetBytes(response));
+                                    Console.WriteLine($"Thread {Thread.CurrentThread.ManagedThreadId} sent response to {remoteEndPoint} for {requestLine[1]}");
                                 }
                                 else
                                 {
@@ -337,6 +344,7 @@ namespace SocketTest
                                             "\r\n" +
                                             responseBody;
                                         handler.Send(Encoding.UTF8.GetBytes(response));
+                                        Console.WriteLine($"Thread {Thread.CurrentThread.ManagedThreadId} sent response to {remoteEndPoint} for {requestLine[1]}");
                                     }
                                     else
                                     {
@@ -350,6 +358,7 @@ namespace SocketTest
                                             "\r\n" +
                                             responseBody;
                                         handler.Send(Encoding.UTF8.GetBytes(response));
+                                        Console.WriteLine($"Thread {Thread.CurrentThread.ManagedThreadId} sent response to {remoteEndPoint} for {requestLine[1]}");
                                     }
                                 }
                             }
@@ -395,6 +404,7 @@ namespace SocketTest
                                     "\r\n" +
                                     responseBody;
                                 handler.Send(Encoding.UTF8.GetBytes(response));
+                                Console.WriteLine($"Thread {Thread.CurrentThread.ManagedThreadId} sent response to {remoteEndPoint} for {requestLine[1]}");
                             }
                             else
                             {
@@ -410,6 +420,7 @@ namespace SocketTest
                                     responseBody;
 
                                 handler.Send(Encoding.UTF8.GetBytes(response));
+                                Console.WriteLine($"Thread {Thread.CurrentThread.ManagedThreadId} sent response to {remoteEndPoint} for {requestLine[1]}");
                                 break; // Close connection for unknown endpoints
                             }
 
@@ -420,10 +431,11 @@ namespace SocketTest
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Error with client {remoteEndPoint}: {e}");
+                Console.WriteLine($"[Thread {Thread.CurrentThread.ManagedThreadId}] Error with client {remoteEndPoint}: {e}");
             }
             finally
             {
+                Console.WriteLine($"Thread {Thread.CurrentThread.ManagedThreadId} closing connection with {remoteEndPoint} and terminating");
                 handler.Shutdown(SocketShutdown.Both);
                 handler.Close();
             }
