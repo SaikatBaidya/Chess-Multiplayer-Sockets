@@ -133,6 +133,10 @@
          if (source !== "bin") {
             const sourceSquare = document.querySelector(`[data-position="${source}"]`);
             sourceSquare.innerHTML = "";
+            if (username && gameId) {
+               const move = source + "bin";
+               sendMove(move);
+            }
          } else {
             // Remove from bin
             const draggedEl = document.querySelector('.piece.dragging');
@@ -244,20 +248,26 @@
       }
 
       function applyOpponentMove(move) {
-         if (!move || move.length !== 4) return;
+         if (!move || move.length < 4) return;
          const from = move.substring(0, 2);
-         const to = move.substring(2, 4);
+         const to = move.substring(2);
 
          const fromSquare = document.querySelector(`[data-position="${from}"]`);
-         const toSquare = document.querySelector(`[data-position="${to}"]`);
-         if (!fromSquare || !toSquare) return;
+         if (!fromSquare) return;
 
-         // Move the piece
          const piece = fromSquare.querySelector('.piece');
-         if (piece) {
-            fromSquare.innerHTML = "";
+         fromSquare.innerHTML = "";
+
+         if (to === "bin") {
+            // Move to capture bin
+            const bin = document.getElementById("capture-bin");
+            if (piece) bin.appendChild(createPiece(piece.textContent));
+         } else {
+            // Normal move
+            const toSquare = document.querySelector(`[data-position="${to}"]`);
+            if (!toSquare) return;
             toSquare.innerHTML = "";
-            toSquare.appendChild(createPiece(piece.textContent));
+            if (piece) toSquare.appendChild(createPiece(piece.textContent));
          }
       }
 
