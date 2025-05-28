@@ -147,6 +147,9 @@ async function sendMove(move) {
       const data = await resp.json();
       if (data.status === "ok") {
          console.log("Move sent:", move);
+      } else if (data.status === "opponent_quit") {
+         alert("Your opponent has quit the game. Your move cannot be sent.");
+         location.reload(); // or disable the UI
       } else {
          alert("Error sending move: " + JSON.stringify(data));
       }
@@ -158,20 +161,26 @@ async function sendMove(move) {
 let lastOpponentMove = null;
 
 async function pollOpponentMove() {
-   if (!username || !gameId) return;
-   try {
-      const resp = await fetch(
-         `http://localhost:11000/theirmove?player=${encodeURIComponent(username)}&id=${encodeURIComponent(gameId)}`
-      );
-      const data = await resp.json();
-      if (data.move && data.move !== lastOpponentMove) {
-         lastOpponentMove = data.move;
-         applyOpponentMove(data.move);
-      }
-   } catch (err) {
-      console.log("Polling error:", err);
-   }
-   setTimeout(pollOpponentMove, 2000);
+  if (!username || !gameId) return;
+  try {
+    const resp = await fetch(
+      `http://localhost:11000/theirmove?player=${encodeURIComponent(username)}&id=${encodeURIComponent(gameId)}`
+    );
+    const data = await resp.json();
+    if (data.opponentQuit) {
+      alert("Your opponent has quit the game.");
+      // Optionally, disable the board or reload the page
+      location.reload();
+      return;
+    }
+    if (data.move && data.move !== lastOpponentMove) {
+      lastOpponentMove = data.move;
+      applyOpponentMove(data.move);
+    }
+  } catch (err) {
+    console.log("Polling error:", err);
+  }
+  setTimeout(pollOpponentMove, 2000);
 }
 
 function applyOpponentMove(move) {

@@ -21,6 +21,8 @@ namespace SocketTest
             public string Player2 { get; set; }
             public string LastMove1 { get; set; }
             public string LastMove2 { get; set; }
+            public bool Quit1 { get; set; } = false;
+            public bool Quit2 { get; set; } = false;
         }
 
         public void StartListening()
@@ -260,10 +262,10 @@ namespace SocketTest
                                     }
                                     else
                                     {
-                                        string responseBody = "Game or player not found";
+                                        string responseBody = "{\"status\":\"opponent_quit\"}";
                                         string response =
-                                            "HTTP/1.1 404 Not Found\r\n" +
-                                            "Content-Type: text/plain\r\n" +
+                                            "HTTP/1.1 200 OK\r\n" +
+                                            "Content-Type: application/json\r\n" +
                                             "Access-Control-Allow-Origin: *\r\n" +
                                             $"Content-Length: {Encoding.UTF8.GetByteCount(responseBody)}\r\n" +
                                             "Connection: keep-alive\r\n" +
@@ -313,6 +315,7 @@ namespace SocketTest
                                 {
                                     string move = null;
                                     bool found = false;
+                                    bool opponentQuit = false;
                                     lock (_lock)
                                     {
                                         foreach (var game in activeGames)
@@ -320,21 +323,23 @@ namespace SocketTest
                                             if (game.GameId == gameId)
                                             {
                                                 if (game.Player1 == player)
+                                                {
                                                     move = game.LastMove2;
+                                                    opponentQuit = game.Quit2;
+                                                }
                                                 else if (game.Player2 == player)
+                                                {
                                                     move = game.LastMove1;
-                                                else
-                                                    break; // player not in this game
-
+                                                    opponentQuit = game.Quit1;
+                                                }
                                                 found = true;
                                                 break;
                                             }
                                         }
                                     }
-
                                     if (found)
                                     {
-                                        string responseBody = $"{{\"move\":{(move == null ? "null" : $"\"{move}\"")}}}";
+                                        string responseBody = $"{{\"move\":{(move == null ? "null" : $"\"{move}\"")},\"opponentQuit\":{(opponentQuit ? "true" : "false")}}}";
                                         string response =
                                             "HTTP/1.1 200 OK\r\n" +
                                             "Content-Type: application/json\r\n" +
