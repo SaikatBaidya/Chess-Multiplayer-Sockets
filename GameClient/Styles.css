@@ -75,3 +75,71 @@ body {
    font-size: 36px;
    cursor: grab;
 }
+
+input#playerName {
+   padding: 10px 14px;
+   border: 1.5px solid #b58863;
+   border-radius: 6px;
+   font-size: 1rem;
+   margin-right: 10px;
+   outline: none;
+   transition: border-color 0.2s;
+}
+input#playerName:focus {
+   border-color: #f0d9b5;
+   background: #fffbe7;
+}
+
+button {
+   padding: 10px 18px;
+   margin: 5px 4px 5px 0;
+   background: #b58863;
+   color: #fff;
+   border: none;
+   border-radius: 6px;
+   font-size: 1rem;
+   font-weight: bold;
+   cursor: pointer;
+   box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+   transition: background 0.2s, transform 0.1s;
+}
+button:hover, button:focus {
+   background: #a0764b;
+   transform: translateY(-2px) scale(1.03);
+}
+
+#pairStatus {
+   margin: 18px 0 24px 0;
+   padding: 10px 18px;
+   min-height: 28px;
+   background: #f0d9b5;
+   color: #5a4633;
+   border-radius: 6px;
+   font-size: 1.08rem;
+   font-weight: 500;
+   box-shadow: 0 1px 4px rgba(181,136,99,0.08);
+   letter-spacing: 0.01em;
+   max-width: 480px;
+   word-break: break-word;
+}
+
+#pairStatus:empty {
+   display: none;
+}
+
+.utility-btn {
+   padding: 7px 14px;
+   font-size: 0.98rem;
+   background: #e0c08b;
+   color: #5a4633;
+   border-radius: 5px;
+   margin: 4px 2px 0 0;
+   font-weight: 500;
+   box-shadow: none;
+   border: 1px solid #d1b07c;
+   transition: background 0.2s, color 0.2s;
+}
+.utility-btn:hover, .utility-btn:focus {
+   background: #f0d9b5;
+   color: #a0764b;
+}
