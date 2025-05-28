@@ -34,7 +34,7 @@ chess-server-711/
 
 To run the server and client locally, follow these steps:
 
-1. Clone the repository: `[git clone https://github.com/SaikatBaidya/Chess-Server-711.git](https://github.com/SaikatBaidya/Chess-Multiplayer-Sockets.git)`
+1. Clone the repository: `https://github.com/SaikatBaidya/Chess-Multiplayer-Sockets.git`
 2. Open a terminal in the `GameServer` directory.
 3. Run:
 ```
